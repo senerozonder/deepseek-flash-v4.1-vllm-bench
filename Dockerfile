@@ -8,7 +8,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl git jq nano vim-tiny tmux htop rsync \
     openssh-server numactl pciutils procps iproute2 \
+    && rm -f /etc/ssh/ssh_host_* \
     && rm -rf /var/lib/apt/lists/*
+# Verify the base image's Python environment.
+RUN python3 --version && \
+    python3 -m pip --version && \
+    python3 -c "from importlib.metadata import version; print(version('vllm'))" && \
+    ln -sf "$(command -v python3)" /usr/local/bin/python
+
 COPY requirements.txt /opt/benchmark/requirements.txt
 # Keep every existing base-image Python distribution at its installed version.
 RUN python -m pip list --format=freeze > /tmp/base-constraints.txt && \
