@@ -1,0 +1,12 @@
+# Existing base-image packages retain their exact versions via Dockerfile constraints.
+# Extra dependencies are resolved at build time; see /opt/benchmark/requirements-frozen.txt.
+aiohttp
+httpx
+requests
+PyYAML
+psutil
+nvidia-ml-py
+numpy
+pandas
+matplotlib
+tqdm

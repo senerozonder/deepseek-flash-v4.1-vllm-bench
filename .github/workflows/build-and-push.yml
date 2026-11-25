@@ -1,0 +1,48 @@
+name: Build and publish benchmark image
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - requirements.txt
+      - start.sh
+      - .dockerignore
+      - .github/workflows/build-and-push.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: ghcr-main
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      IMAGE: ghcr.io/senerozonder/deepseek-flash-v4.1-vllm-bench
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free runner disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo apt-get clean
+          docker image prune -af
+          df -h /
+      - name: Authenticate to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$IMAGE:0.33.0" -t "$IMAGE:0.33.0-${GITHUB_SHA}" .
+      - name: CPU-only package smoke test
+        run: |
+          docker run --rm --entrypoint python "$IMAGE:0.33.0" -c 'from importlib.metadata import version; assert version("vllm").split("+")[0] == "0.33.0"; import aiohttp, httpx, requests, yaml, psutil, pynvml, numpy, pandas, matplotlib, tqdm; print("Package check passed")'
+          docker run --rm --entrypoint bash "$IMAGE:0.33.0" -n /usr/local/bin/benchmark-start.sh
+      - name: Push
+        run: |
+          docker push "$IMAGE:0.33.0-${GITHUB_SHA}"
+          docker push "$IMAGE:0.33.0"
