@@ -19,8 +19,13 @@ RUN python3 --version && \
 COPY requirements.txt /opt/benchmark/requirements.txt
 # Keep every existing base-image Python distribution at its installed version.
 RUN python -m pip list --format=freeze > /tmp/base-constraints.txt && \
+    (python -m pip check > /opt/benchmark/pip-check-before.txt 2>&1 || test "$?" -eq 1) && \
     python -m pip install --no-cache-dir -c /tmp/base-constraints.txt -r /opt/benchmark/requirements.txt && \
-    python -m pip check && \
+    (python -m pip check > /opt/benchmark/pip-check-after.txt 2>&1 || test "$?" -eq 1) && \
+    sort -o /opt/benchmark/pip-check-before.txt /opt/benchmark/pip-check-before.txt && \
+    sort -o /opt/benchmark/pip-check-after.txt /opt/benchmark/pip-check-after.txt && \
+    cat /opt/benchmark/pip-check-after.txt && \
+    diff -u /opt/benchmark/pip-check-before.txt /opt/benchmark/pip-check-after.txt && \
     python -c "from importlib.metadata import version; assert version('vllm').split('+')[0] == '0.33.0', version('vllm')" && \
     python -m pip freeze > /opt/benchmark/requirements-frozen.txt && \
     rm /tmp/base-constraints.txt
